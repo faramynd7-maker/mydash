@@ -31,7 +31,8 @@ jobs:
         run: |
           rsconnect add \
             --name shinyapps \
-            --server https://api.shinyapps.io \
+            --server shinyapps.io \
+            --account "${{ secrets.SHINYAPPS_ACCOUNT }}" \
             --token "${{ secrets.SHINYAPPS_TOKEN }}" \
             --secret "${{ secrets.SHINYAPPS_SECRET }}"
 
