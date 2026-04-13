@@ -40,4 +40,5 @@ jobs:
         run: |
           rsconnect deploy shiny . \
             --name shinyapps \
-            --title mydash
+            --title mydash \
+            --app-id "${{ secrets.SHINYAPPS_APP_ID }}"
