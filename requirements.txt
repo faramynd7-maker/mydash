@@ -1,0 +1,7 @@
+shiny
+pandas
+openpyxl
+plotly
+great-tables
+folium
+htmltools
