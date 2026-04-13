@@ -89,9 +89,9 @@ app_ui = ui.page_fluid(
                         ui.card_header("Распределение по городам"),
                         ui.navset_tab(
                             ui.nav_panel("Карта", ui.output_ui("map")),
-                            ui.nav_panel("Города", ui.output_table("table_cities")),
-                            ui.nav_panel("Диагнозы", ui.output_table("table_diags")),
-                            ui.nav_panel("Организмы", ui.output_table("table_orgs")),
+                            ui.nav_panel("Города", ui.output_ui("table_cities")),
+                            ui.nav_panel("Диагнозы", ui.output_ui("table_diags")),
+                            ui.nav_panel("Организмы", ui.output_ui("table_orgs")),
                         ),
                         full_screen=True,
                     ),
@@ -128,7 +128,7 @@ app_ui = ui.page_fluid(
 
 def server(input, output, session):
     # ---- reactive data holder ----
-    dataset = reactive.value(None)
+    dataset = reactive.Value(None)
 
     # ---- file loading ----
     @reactive.effect
@@ -200,7 +200,7 @@ def server(input, output, session):
 
     # ---- filtered data ----
     @reactive.calc
-    def data():
+    def filtered_data():
         df = dataset.get()
         if df is None:
             return pd.DataFrame()
@@ -238,7 +238,7 @@ def server(input, output, session):
     # ---- value box ----
     @render.ui
     def data_count():
-        df = data()
+        df = filtered_data()
         value = len(df) if df is not None and not df.empty else 0
         return HTMLToolsHTML(
             f"""
@@ -254,7 +254,7 @@ def server(input, output, session):
     def map():
         import folium
 
-        df = data()
+        df = filtered_data()
         if df is None or df.empty or "LATITUDE" not in df.columns:
             return HTMLToolsHTML("<p>Нет данных для отображения карты</p>")
 
@@ -290,13 +290,13 @@ def server(input, output, session):
         return HTMLToolsHTML(m._repr_html_())
 
     # ---- cities table ----
-    @render.table
+    @render.ui
     def table_cities():
         from great_tables import GT
 
-        df = data()
+        df = filtered_data()
         if df is None or df.empty:
-            return pd.DataFrame()
+            return HTMLToolsHTML("<p>Нет данных</p>")
 
         cities_df = (
             df.groupby("CITYNAME")
@@ -312,27 +312,27 @@ def server(input, output, session):
                 subtitle=f"Среди {len(cities_df)} городов",
             )
             .grand_summary_rows(
-                columns=["Образцов"],
-                fns={"Всего": "sum"},
+                fns={"Всего": lambda x: x.sum()},
             )
             .opt_row_striping()
         )
-        return gt_table
+        return HTMLToolsHTML(gt_table.as_raw_html())
 
     # ---- diagnoses table ----
-    @render.table
+    @render.ui
     def table_diags():
         from great_tables import GT
 
-        df = data()
+        df = filtered_data()
         if df is None or df.empty:
-            return pd.DataFrame()
+            return HTMLToolsHTML("<p>Нет данных</p>")
 
         diags_df = (
             df.groupby(["CITYNAME", "mkb_name"])
             .size()
             .reset_index(name="Count")
-            .pivot(index="mkb_name", columns="CITYNAME", values="Count", fill_value=0)
+            .pivot(index="mkb_name", columns="CITYNAME", values="Count")
+            .fillna(0)
             .reset_index()
         )
         diags_df.columns.name = None
@@ -348,27 +348,27 @@ def server(input, output, session):
                 subtitle=f"Среди {len(city_cols)} городов",
             )
             .grand_summary_rows(
-                columns=city_cols + ["Всего"],
-                fns={"Всего": "sum"},
+                fns={"Всего": lambda x: x.sum()},
             )
             .opt_row_striping()
         )
-        return gt_table
+        return HTMLToolsHTML(gt_table.as_raw_html())
 
     # ---- organisms table ----
-    @render.table
+    @render.ui
     def table_orgs():
         from great_tables import GT
 
-        df = data()
+        df = filtered_data()
         if df is None or df.empty:
-            return pd.DataFrame()
+            return HTMLToolsHTML("<p>Нет данных</p>")
 
         orgs_df = (
             df.groupby(["CITYNAME", "STRAIN"])
             .size()
             .reset_index(name="Count")
-            .pivot(index="STRAIN", columns="CITYNAME", values="Count", fill_value=0)
+            .pivot(index="STRAIN", columns="CITYNAME", values="Count")
+            .fillna(0)
             .reset_index()
         )
         orgs_df.columns.name = None
@@ -383,12 +383,11 @@ def server(input, output, session):
                 subtitle=f"Среди {len(city_cols)} городов",
             )
             .grand_summary_rows(
-                columns=city_cols + ["Всего"],
-                fns={"Всего": "sum"},
+                fns={"Всего": lambda x: x.sum()},
             )
             .opt_row_striping()
         )
-        return gt_table
+        return HTMLToolsHTML(gt_table.as_raw_html())
 
     # ---- diagnoses pie chart ----
     @render.ui
@@ -396,7 +395,7 @@ def server(input, output, session):
         import plotly.express as px
         import plotly.io as pio
 
-        df = data()
+        df = filtered_data()
         if df is None or df.empty:
             return HTMLToolsHTML("<p>Нет данных</p>")
 
@@ -423,7 +422,7 @@ def server(input, output, session):
         import plotly.express as px
         import plotly.io as pio
 
-        df = data()
+        df = filtered_data()
         if df is None or df.empty:
             return HTMLToolsHTML("<p>Нет данных</p>")
 
@@ -451,7 +450,7 @@ def server(input, output, session):
     # ---- data table ----
     @render.data_frame
     def table_data():
-        df = data()
+        df = filtered_data()
         if df is None or df.empty:
             return pd.DataFrame()
 
@@ -503,7 +502,8 @@ def server(input, output, session):
             "Диагноз МКБ",
         ]:
             if col in display_df.columns:
-                display_df[col] = display_df[col].dt.strftime("%Y-%m-%d")
+                if pd.api.types.is_datetime64_any_dtype(display_df[col]):
+                    display_df[col] = display_df[col].dt.strftime("%Y-%m-%d")
 
         return display_df
 
