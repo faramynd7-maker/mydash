@@ -1,0 +1,41 @@
+name: Deploy to shinyapps.io
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install rsconnect-python
+
+      - name: Configure rsconnect
+        run: |
+          rsconnect add shinyapps \
+            --token "${{ secrets.SHINYAPPS_TOKEN }}" \
+            --secret "${{ secrets.SHINYAPPS_SECRET }}" \
+            --name shinyapps
+
+      - name: Deploy to shinyapps.io
+        run: |
+          rsconnect deploy shiny . \
+            --name shinyapps \
+            --title mydash

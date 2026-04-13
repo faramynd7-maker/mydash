@@ -78,7 +78,7 @@ app_ui = ui.page_fluid(
                 step=1,
             ),
             ui.output_ui("data_count"),
-            title="Shiny dashboard",
+            title="Мой первый дашборд",
             width=350,
         ),
         ui.navset_tab(
