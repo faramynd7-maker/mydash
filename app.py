@@ -98,12 +98,12 @@ app_ui = ui.page_fluid(
                     ui.layout_column_wrap(
                         ui.card(
                             ui.card_header("Структура диагнозов"),
-                            ui.output_plot("diag", width="100%", height="400px"),
+                            ui.output_ui("diag"),
                             full_screen=True,
                         ),
                         ui.card(
                             ui.card_header("Структура организмов"),
-                            ui.output_plot("org", width="100%", height="400px"),
+                            ui.output_ui("org"),
                             full_screen=True,
                         ),
                         width=1 / 2,
@@ -391,13 +391,14 @@ def server(input, output, session):
         return gt_table
 
     # ---- diagnoses pie chart ----
-    @render.plot
+    @render.ui
     def diag():
         import plotly.express as px
+        import plotly.io as pio
 
         df = data()
         if df is None or df.empty:
-            return px.pie(labels=[], values=[])
+            return HTMLToolsHTML("<p>Нет данных</p>")
 
         diag_data = df.groupby("mkb_name").size().reset_index(name="count")
         fig = px.pie(
@@ -411,17 +412,20 @@ def server(input, output, session):
             legend=dict(orientation="h", xanchor="center", x=0.5),
             xaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
             yaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
+            margin=dict(l=20, r=20, t=40, b=20),
+            height=400,
         )
-        return fig
+        return HTMLToolsHTML(pio.to_html(fig, full_html=False))
 
     # ---- organisms pie chart ----
-    @render.plot
+    @render.ui
     def org():
         import plotly.express as px
+        import plotly.io as pio
 
         df = data()
         if df is None or df.empty:
-            return px.pie(labels=[], values=[])
+            return HTMLToolsHTML("<p>Нет данных</p>")
 
         org_data = df.groupby("STRAIN").size().reset_index(name="Count")
         org_data["Percent"] = (100 * org_data["Count"] / org_data["Count"].sum()).round(
@@ -439,8 +443,10 @@ def server(input, output, session):
         fig.update_traces(textposition="inside", textinfo="percent+label")
         fig.update_layout(
             legend=dict(title="Организм", orientation="h", xanchor="center", x=0.5),
+            margin=dict(l=20, r=20, t=40, b=20),
+            height=400,
         )
-        return fig
+        return HTMLToolsHTML(pio.to_html(fig, full_html=False))
 
     # ---- data table ----
     @render.data_frame
