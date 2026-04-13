@@ -29,10 +29,11 @@ jobs:
 
       - name: Configure rsconnect
         run: |
-          rsconnect add shinyapps \
+          rsconnect add \
+            --name shinyapps \
+            --server https://api.shinyapps.io \
             --token "${{ secrets.SHINYAPPS_TOKEN }}" \
-            --secret "${{ secrets.SHINYAPPS_SECRET }}" \
-            --name shinyapps
+            --secret "${{ secrets.SHINYAPPS_SECRET }}"
 
       - name: Deploy to shinyapps.io
         run: |
